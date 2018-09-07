@@ -63,7 +63,7 @@ igr_df = data.frame(species = as.character(i), site = j, igr_df, check.names = F
 igr_df %>%
   gather(start_date, IGR, 3:(dim(igr_df)[2]), factor_key = T) -> igr_long
 
-write.csv(igr_long, file = paste(i,"_site-",j,"_IGR.csv",sep = ""), row.names = F) 
+write.csv(igr_long, file = paste("./output/",i,"_site-",j,"_IGR.csv",sep = ""), row.names = F) 
   }  
  }  
 }
