@@ -33,7 +33,7 @@ toc()
 #take a look at one example
 x = read.csv(file = "./output/infrequens_site-1_IGR.csv",T)
 
-x_1 = subset(x,site == 1 & start_date == "2017-08-18")
+x_1 = subset(x,site == 1 & start_date == "2017-09-18")
 
 hist(x_1$IGR)
 median(x_1$IGR)
@@ -43,12 +43,12 @@ quantile(x_1$IGR, c(0.05,0.95))
 #It appears you potentially have multiple cohorts going at the same time.
 #you should probably split these out at some point, otherwise this code is going 
 #to do some weird stuff and you will get some wack-a-doo growth estimates
-#Here is some script to run len_frequency histograms
 
 #what i do is rename the species/taxon name with a number appended. for example,
 # infrequens_1, infrequens_2, etc. for each cohort. It looks like this is not an issue
 #at every site, just some. Which is interesting...
 
+#Here is some script to run len_frequency histograms
 df = read.csv(file = "./infrequensMeasurements.csv", T)
 #create some variables so don't have to F with len_freq code
 df$Pd = as.POSIXct(df$date, format = "%d-%m-%y")
@@ -71,7 +71,7 @@ source("./len_freq_function.R")
 df.julian = read.table(file ='./output/df_wide_julian.txt', header = T, sep = "\t", quote = "", strip.white = T,
                        check.names = F, row.names = NULL)
 
-#this is running oddly slow on my computer if you run it can you let me know how 
+#this is running oddly slow on my computer if you run it on just the subset, can you let me know how 
 #quickly it ran, please.
 tic();len_freq(df.julian, fun = sum);toc()
 

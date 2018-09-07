@@ -49,7 +49,7 @@ bootsdata %>%
 
 #now work across two columns at a time to estimate growth
 #1:names(bootsdata[,-1:2]))
-growth_rate <- function(x,y,z) {(log(x)/log(y))/z}
+growth_rate <- function(x,y,z) {(log(y/x))/z}
 
 igr_df = c()
 for(w in 1:(max(bootsdata_id$id)-1)){
