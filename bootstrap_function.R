@@ -27,7 +27,7 @@ boots = function(allData, nboot,...){
           repeat {
         date.samp = date.sub[sample(1:length(date.sub[,1]),1, replace = TRUE),]
         x = x+1#date.samp = date.sub[date.samp,]
-        if(date.samp[,'mass'] > boot.data_wide[l,k-1] | x == 100){
+        if(date.samp[,'mass'] >= boot.data_wide[l,k-1] | x == 300){
           boot.data_wide[l,k] <- date.samp
           break
           }}
