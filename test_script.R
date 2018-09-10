@@ -14,10 +14,11 @@ unique(levels(df$species))
 #need to convert dates into POSIX format
 df$Pd = as.POSIXct(df$date, format = "%d-%m-%y")
 #just a quick visualization
-ggplot(df, aes(x = Pd, y = mass, colour = as.factor(Site))) + 
+site5 = df[which(df$Site == "5"),]
+ggplot(site5, aes(x = Pd, y = mass, colour = as.factor(Site))) + 
   geom_point(size =2, position = "jitter")
 
-x = subset(df, Site == "1" & date == "19-11-17")
+x = subset(df, Site == "2" & date == "19-11-17")
 hist(x$bodySize, breaks = 30)
 ##### done with QAQC #####
 
@@ -27,17 +28,39 @@ df = read.csv(file = "./infrequensMeasurements.csv",T)
 source("./boot_function.R")
 #debugonce(cohort_boot)
 tic()
-suppressWarnings(cohort_boot(df))
+suppressWarnings(cohort_boot(df, nboot = 1000))
 toc()
 
 #take a look at one example
 x = read.csv(file = "./output/infrequens_site-1_IGR.csv",T)
-
-x_1 = subset(x,site == 1 & start_date == "2017-09-18")
+unique(levels(x$start_date))
+x_1 = subset(x, site == 1 & start_date == "2017-10-15")
 
 hist(x_1$IGR)
 median(x_1$IGR)
-quantile(x_1$IGR, c(0.05,0.95))
+quantile(x_1$IGR, c(0.0275,0.975))
+
+site_date = paste(x_1$site,"_",x_1$start_date, sep = "")
+df_int = data.frame(site_date = site_date, IGR = x_1$IGR)
+
+f <-  function(u){
+  which.min(abs(as.numeric(u$vals) - 0.5))
+}
+
+ecdf.plot <- function(DATA)
+{
+  
+  x = sort(unique(DATA[,2]))
+  vals = cumsum(tabulate(match(DATA[,2] , unique(DATA[,2]))))/length(DATA[,2])
+  df = data.frame(x, vals)
+  ggplot(df, aes(x = vals, y = x)) + geom_point(size = 3, shape = 19, colour = "#999999") + geom_line(lwd = 1.2) +
+    labs(x = "Cumulative Frequency", y = "IGR (d-1)") + scale_y_continuous() +
+    geom_hline(yintercept = as.numeric(df$x[f(df)])) +
+    annotate("text", x = 0.25, y = 0.2, label = as.character(levels(droplevels(DATA$site_date)))) +
+    annotate("text", x = 0.25, y = 0.18, label = as.character(paste("igr50 = ",df$x[f(df)], sep = "")))
+}
+
+ecdf.plot(df_int)
 
 #quick notes: You should take a look at some of the size frequency data (see above in QAQC).
 #It appears you potentially have multiple cohorts going at the same time.

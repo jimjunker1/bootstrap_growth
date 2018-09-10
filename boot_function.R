@@ -34,8 +34,8 @@ date_df[wrap_loc, 'day'] = wrap_fix
 site_data$date = factor(site_data$date, levels = levels(date_df$date))
 
 source("./bootstrap_function.R")#function selects data 
+#debugonce(boots)
 bootsdata = boots(site_data, nboot = nboot)
-bootsdata = bootsdata[-1,]
 
 bootsdata %>%
   select(species, Site, date, mass) %>%
@@ -62,6 +62,9 @@ colnames(igr_df) = unique(levels(date_df$date))[1:(nrow(date_df)-1)]
 igr_df = data.frame(species = as.character(i), site = j, igr_df, check.names = F)
 igr_df %>%
   gather(start_date, IGR, 3:(dim(igr_df)[2]), factor_key = T) -> igr_long
+
+igr_fix = which(igr_long$IGR <= 0)
+igr_long[igr_fix, 'IGR'] = 0.001
 
 write.csv(igr_long, file = paste("./output/",i,"_site-",j,"_IGR.csv",sep = ""), row.names = F) 
   }  
