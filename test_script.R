@@ -1,5 +1,5 @@
 # script to boot strap growth rates from size-frequency histograms
-library(tidyverse);theme_set(theme_bw())
+library(tidyverse);theme_mod = function() {theme_bw() %+replace% theme(panel.grid = element_blank())};theme_set(theme_mod())
 library(tictoc)
 
 ##### some basic QAQC of data for my benefit #####
@@ -26,11 +26,28 @@ hist(x$bodySize, breaks = 30)
 df = read.csv(file = "./infrequensMeasurements.csv",T)
 #load in the function
 source("./boot_function.R")
-#debugonce(cohort_boot)
 tic()
-suppressWarnings(cohort_boot(df, nboot = 1000))
+suppressWarnings(cohort_boot(df, nboot = 2))
 toc()
+#907 secs regular
+#Run parallel
+#debugonce(cohort_boot)
 
+
+library(parallel)
+num_cores <- detectCores()
+parallel_cluster<-makeCluster(num_cores-1) # without the fork
+tic();parLapply(parallel_cluster, df, cohort_boot);toc()
+stopCluster(parallel_cluster)
+tic()
+parallel_cluster<-makeCluster(num_cores-1) # without the fork
+df = read.csv(file = "./infrequensMeasurements.csv",T)
+#load in the function
+source("./boot_function.R")
+clusterExport(parallel_cluster, varlist = c("cohort_boot","df"))
+suppressWarnings(cohort_boot(df, nboot = 1000))
+stopCluster(parallel_cluster)
+toc()
 #take a look at one example
 x = read.csv(file = "./output/infrequens_site-1_IGR.csv",T)
 unique(levels(x$start_date))
@@ -55,9 +72,10 @@ ecdf.plot <- function(DATA)
   df = data.frame(x, vals)
   ggplot(df, aes(x = vals, y = x)) + geom_point(size = 3, shape = 19, colour = "#999999") + geom_line(lwd = 1.2) +
     labs(x = "Cumulative Frequency", y = "IGR (d-1)") + scale_y_continuous() +
+    scale_x_continuous(limits = c(0,1)) +
     geom_hline(yintercept = as.numeric(df$x[f(df)])) +
     annotate("text", x = 0.25, y = 0.2, label = as.character(levels(droplevels(DATA$site_date)))) +
-    annotate("text", x = 0.25, y = 0.18, label = as.character(paste("igr50 = ",df$x[f(df)], sep = "")))
+    annotate("text", x = 0.25, y = 0.18, label = as.character(paste("igr50 = ",round(df$x[f(df)],4), sep = "")))
 }
 
 ecdf.plot(df_int)
