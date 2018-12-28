@@ -1,16 +1,20 @@
 #boot strap function
 
 cohort_boot = function(DATA,nboot = NULL, parallel = TRUE,...){
-
+  source("./cohort_boot_functions/create_lists.R")
+  source("./cohort_boot_functions/taxa_subset_function.R")
   #sets the number of "individuals" you want to sample
   if(is.null(nboot)){
     nboot = 500
   } else{ nboot = nboot }
   
   if(parallel = FALSE) {
-
-  taxa = unique(levels(DATA$species))#set taxa levels
-for(i in taxa){
+    
+    
+  taxa = list(unique(levels(DATA$species)))#set taxa levels
+  tax_data = map(taxa, taxa_subset)
+  
+  for(i in taxa){
   tax_data = DATA[which(DATA$species == as.character(i)),]#grab single taxa
   sites = unique(levels(as.factor(tax_data$Site)))#set site levels for a single taxa
 for(j in sites){
