@@ -4,11 +4,17 @@ library(furrr)
 source("./cohort_boot_functions/create_data_lists_function.R")
 source("./cohort_boot_functions/sites_subset_function.R")
 source("./cohort_boot_functions/convert_to_julian_function.R")
+source("./cohort_boot_functions/taxa_list_split_function.R")
+source("./cohort_boot_functions/date_order_lists_function.R")
+source("./cohort_boot_functions/date_reorder_function.R")
 
 df = read.csv(file = "./infrequensMeasurements.csv",T)
 df <- df %>% dplyr::rename(TAXON = species, SITE = Site, DATE = date, MASS = mass)
 df2 = df %>% mutate(TAXON = "infrequens2")
 DATA = rbind(df,df2)
+
+
+parallel_cohort_boot(DATA)
 
 #### create_data_lists(DATA) ####
 
@@ -26,34 +32,58 @@ julian = as.numeric(format(posix_vec, "%j"))
 ####
 #convert all dates to julian
 sites_data_list = map(sites_data_list, convert_to_julian)
-
-##### date_reorder(site_data_list, taxa_list) ####
-site_list = c(rep(unique(sites_data_list[[1]]$SITE),length(taxa_lists[[1]])))
-dada = map2(list(site_list),taxa_lists[[1]], function(x,y) {
-  print(x);print(y)
-  sites_data_list[[1]] %>%
-    filter(SITE == x & TAXON == y)})
-#subset taxa/cohorts and reorder dates based start of cohort
-date_reorder = function(site_data_list, taxa_list,...){
-#cohort_site_date_df = 
-  site_list = c(rep(unique(sites_data_list[[1]]$SITE),length(taxa_lists[[1]])))
+#### taxa_list_split(site_data_list, taxa_list) ####
+taxa_list_split = function(site_data_list, taxa_list,...){
+  site_list = c(rep(unique(site_data_list$SITE),length(taxa_list)))
   map2(list(site_list),taxa_list, function(x,y){
-    date_order = site_data_list %>% filter(SITE == x,TAXON == y) %>%
+    site_data_list %>% filter(SITE == x, TAXON == y)
+  })
+}
+#subset taxa/cohorts and create list of lists of data
+site_taxa_data_lists = pmap(list(sites_data_list,taxa_lists), taxa_list_split)
+
+##### date_reorder(site_taxa_data_lists) #####
+date_order_lists = function(site_taxa_data_list,...){
+  date_order = map(site_taxa_data_list, function(x) { x %>%
     group_by(DATE) %>%
-    summarise(mean_mass = mean(MASS, na.rm=T), julian = unique(julian, na.rm = T)) %>%
+    summarise(mean_mass = median(MASS, na.rm=T), julian = unique(julian, na.rm = T)) %>%
     arrange(mean_mass) %>%
     mutate(DATE = reorder(DATE, mean_mass)) %>%
-    mutate(day = c(diff(julian),NA), id = 1:n()) %>%
-    mutate(day = ifelse(day < 0, 365-abs(day),day))
-    site_data_list$DATE = factor(site_data_list$DATE, levels = levels(date_order$DATE))
-  })
-  #wrap_loc = which(cohort_site_date_df$day < 0);wrap_fix = 365-abs(cohort_site_date_df[which(cohort_site_date_df$day < 0),'day'])
-  ##date_df[wrap_loc, 'day'] = wrap_fix
-  #site_data$date = factor(site_data$date, levels = levels(date_df$date))
+    mutate(day = c(diff(julian),NA)) %>%#, id = 1:n()) %>%
+    mutate(day = ifelse(day < 0, 365-abs(day),day))})
 }
-#debugonce(date_reorder)
-cohort_site_data = pmap(list(sites_data_list, taxa_lists), date_reorder)
-cohort_site_data[[1]]
+#create list of date order based start of cohort
+cohort_date_lists = map(site_taxa_data_lists, date_order_lists)
+
+##### date_reorder
+date_reorder = function(site_taxa_data_list, cohort_date_list,...){
+  map2(site_taxa_data_list, cohort_date_list, function(x,y) {
+  x %>% mutate(DATE = factor(x$DATE, levels = levels(y$DATE))) %>%
+  left_join(y %>% select(c(DATE, day)))})
+}
+#reorder dates based start of cohort
+site_taxa_data_lists = pmap(list(site_taxa_data_lists,cohort_date_lists), date_reorder)
+
+
+
+
+ggplot(site_taxa_data_lists[[1]][[1]], aes(x = DATE, y = MASS)) + geom_point(size = 2, position = 'jitter')
+make_plot = function(site_taxa_list,...){
+  ggplot(site_taxa_list, aes(x = DATE, y = MASS)) + geom_point(size = 2, position = 'jitter') +
+    scale_y_continuous(limits = c(0,5))
+}
+map(site_taxa_data_lists, function(x) map(x,make_plot))
+
+
+
+
+ggplot(site5, aes(x = Pd, y = mass, colour = as.factor(SITE))) + 
+  geom_point(size =2, position = "jitter")
+
+
+map()
+
+
 cohort_sub
 #create a list of data subset for every taxa
 tax_data_lists= map2(list(df), taxa, taxa_subset)

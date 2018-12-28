@@ -1,12 +1,24 @@
 #boot strap function
 
-cohort_boot = function(DATA,nboot = NULL, parallel = TRUE,...){
-  source("./cohort_boot_functions/create_lists.R")
-  source("./cohort_boot_functions/taxa_subset_function.R")
+parallel_cohort_boot = function(DATA,nboot = NULL, parallel = TRUE,...){
+  library(tidyverse)
+  library(furrr)
+  source("./cohort_boot_functions/create_data_lists_function.R")
+  source("./cohort_boot_functions/sites_subset_function.R")
+  source("./cohort_boot_functions/convert_to_julian_function.R")
+  source("./cohort_boot_functions/taxa_list_split_function.R")
+  source("./cohort_boot_functions/date_order_lists_function.R")
+  source("./cohort_boot_functions/date_reorder_function.R")
   #sets the number of "individuals" you want to sample
   if(is.null(nboot)){
     nboot = 500
   } else{ nboot = nboot }
+  if(parallel = TRUE) {
+    create_data_lists(DATA)
+    sites_data_list = map(sites_data_list, convert_to_julian)
+    site_taxa_data_lists = pmap(list(sites_data_list,taxa_lists), taxa_list_split)
+    
+  }
   
   if(parallel = FALSE) {
     
