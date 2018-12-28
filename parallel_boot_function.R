@@ -13,15 +13,15 @@ parallel_cohort_boot = function(DATA,nboot = NULL, parallel = TRUE,...){
   if(is.null(nboot)){
     nboot = 500
   } else{ nboot = nboot }
-  if(parallel = TRUE) {
+  if(parallel == TRUE) {
     create_data_lists(DATA)
     sites_data_list = map(sites_data_list, convert_to_julian)
     site_taxa_data_lists = pmap(list(sites_data_list,taxa_lists), taxa_list_split)
+    cohort_date_lists = map(site_taxa_data_lists, date_order_lists)
+    site_taxa_data_lists = pmap(list(site_taxa_data_lists,cohort_date_lists), date_reorder)
     
-  }
-  
-  if(parallel = FALSE) {
-    
+    list(site_taxa_data_lists = site_taxa_data_lists)
+  } else{
     
   taxa = list(unique(levels(DATA$species)))#set taxa levels
   tax_data = map(taxa, taxa_subset)
@@ -89,7 +89,4 @@ write.csv(igr_long, file = paste("./output/",i,"_site-",j,"_IGR.csv",sep = ""), 
   }  
  }  
 }
-} else{ 
-  df = DATA %>%
-    filter()
-  }
+} 

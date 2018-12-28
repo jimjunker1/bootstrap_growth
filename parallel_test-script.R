@@ -13,8 +13,9 @@ df <- df %>% dplyr::rename(TAXON = species, SITE = Site, DATE = date, MASS = mas
 df2 = df %>% mutate(TAXON = "infrequens2")
 DATA = rbind(df,df2)
 
-
-parallel_cohort_boot(DATA)
+source("./parallel_boot_function.R")
+parallel_cohort_boot(DATA, parallel = TRUE)
+tic();create_data_lists(DATA);toc()
 
 #### create_data_lists(DATA) ####
 
@@ -64,6 +65,9 @@ date_reorder = function(site_taxa_data_list, cohort_date_list,...){
 #reorder dates based start of cohort
 site_taxa_data_lists = pmap(list(site_taxa_data_lists,cohort_date_lists), date_reorder)
 
+###### start here to integrate parallel bootstrap function after build it ######
+source("./bootstrap_function.R")#function selects data 
+bootsdata = boots(site_data, nboot = nboot)
 
 
 
