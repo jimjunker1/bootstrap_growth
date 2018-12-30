@@ -12,9 +12,10 @@ df = read.csv(file = "./infrequensMeasurements.csv",T)
 df <- df %>% dplyr::rename(TAXON = species, SITE = Site, DATE = date, MASS = mass)
 df2 = df %>% mutate(TAXON = "infrequens2")
 DATA = rbind(df,df2)
-
+nboot = 500
 source("./parallel_boot_function.R")
-parallel_cohort_boot(DATA, parallel = TRUE)
+debugonce(parallel_cohort_boot)
+parallel_cohort_boot(DATA, nboot = 500, parallel = TRUE)
 tic();create_data_lists(DATA);toc()
 
 #### create_data_lists(DATA) ####
@@ -64,13 +65,70 @@ date_reorder = function(site_taxa_data_list, cohort_date_list,...){
 }
 #reorder dates based start of cohort
 site_taxa_data_lists = pmap(list(site_taxa_data_lists,cohort_date_lists), date_reorder)
-
+site_taxa_data_lists[[1]][[1]]
 ###### start here to integrate parallel bootstrap function after build it ######
-source("./bootstrap_function.R")#function selects data 
-bootsdata = boots(site_data, nboot = nboot)
+unique(levels(site_taxa_data_lists[[1]][[1]]$DATE))
+# boots() function gets fed a data frame
+# need to go from list of sites_taxa_data_lists to run the boot function
+# want to return a list of dataframes of IGR for each site-taxa/cohort pair
+source("./parallel_bootstrap_function.R")#function selects data 
+### run_list_boots(sites_taxa_data_lists) ###
+run_list_boots = function(site_taxa_data_list, nboot,...){
+  future_map2(site_taxa_data_list,nboot, parallel_boots)
+}
+nboot = 50
+#debugonce(run_list_boots);debugonce(parallel_boots)
+#run the lists of site_taxa data through the bootstrap function
+plan(multiprocess)
+bootsdata = future_map2(site_taxa_data_lists,nboot, run_list_boots)
+
+bootsdata_wide = future_map2(bootsdata, nboot, function(x,y) {
+  future_map2(x,y, function(x,y) { x %>%
+        select(TAXON, SITE, DATE, MASS) %>%
+        mutate(id = rep(1:y), length(unique(levels(x$DATE)))) %>%
+        spread(DATE, MASS) %>%
+        select(-id)})
+})
+
+bootsdata[[1]][[1]] %>%
+  select(TAXON, SITE, DATE, MASS) %>%
+  mutate(id = rep(1:nboot, length(unique(levels(bootsdata[[1]][[1]]$DATE))))) %>%
+  spread(DATE,MASS) %>%
+  select(-id)-> bootsdata_wide
+tic();
+mass_positive = function(bootsdata_wide, bootsdata,...){
+for(k in 4:dim(bootsdata_wide)[2]){
+  for(l in 1:nrow(bootsdata_wide)){
+    if(bootsdata_wide[l,k] < bootsdata_wide[l,(k-1)]){ 
+      date.sub = subset(bootsdata, DATE == as.character(names(bootsdata_wide)[k]))
+      x=1
+      repeat {
+        date.samp = date.sub[sample(1:length(date.sub[,1]),1, replace = TRUE),]
+        x = x+1
+        if(date.samp[,'MASS'] >= bootsdata_wide[l,k-1] | x == 300){
+          bootsdata_wide[l,k] <- date.samp[,'MASS']
+          break
+         }
+       }
+     }
+   }
+ } 
+return(bootsdata_wide) 
+}
+debugonce(mass_positive)
+tic();x = mass_positive(bootsdata_wide, bootsdata[[1]][[1]]);toc()
+str(x)
+
+x %>% group_by(SITE, TAXON) %>%
+  gather(key = DATE, value = MASS, 3:dim(x)[2]) ->y 
+x %>% mutate(TAXON = droplevels(TAXON)) -> x
+map2(bootsdata_wide, bootsdata, function(x,y) walk2(x,y, mass_positive(x, y)));toc()
+#####
 
 
 
+
+list(nboot)
 ggplot(site_taxa_data_lists[[1]][[1]], aes(x = DATE, y = MASS)) + geom_point(size = 2, position = 'jitter')
 make_plot = function(site_taxa_list,...){
   ggplot(site_taxa_list, aes(x = DATE, y = MASS)) + geom_point(size = 2, position = 'jitter') +

@@ -9,16 +9,24 @@ parallel_cohort_boot = function(DATA,nboot = NULL, parallel = TRUE,...){
   source("./cohort_boot_functions/taxa_list_split_function.R")
   source("./cohort_boot_functions/date_order_lists_function.R")
   source("./cohort_boot_functions/date_reorder_function.R")
+  source("./cohort_boot_functions/run_list_boots_function.R")
+  source("./cohort_boot_functions/mass_positive_function.R")
+  
   #sets the number of "individuals" you want to sample
   if(is.null(nboot)){
     nboot = 500
   } else{ nboot = nboot }
   if(parallel == TRUE) {
+    #environment(create_data_lists) <- environment()
     create_data_lists(DATA)
     sites_data_list = map(sites_data_list, convert_to_julian)
     site_taxa_data_lists = pmap(list(sites_data_list,taxa_lists), taxa_list_split)
     cohort_date_lists = map(site_taxa_data_lists, date_order_lists)
     site_taxa_data_lists = pmap(list(site_taxa_data_lists,cohort_date_lists), date_reorder)
+    
+    source("./parallel_bootstrap_function.R")#function selects data 
+    #debugonce(boots)
+    bootsdata = map2(site_taxa_data_lists,nboot, run_list_boots)
     
     list(site_taxa_data_lists = site_taxa_data_lists)
   } else{
