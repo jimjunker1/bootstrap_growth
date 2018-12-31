@@ -7,7 +7,7 @@ mass_positive = function(bootsdata_wide, bootsdata,...){
         repeat {
           date.samp = date.sub[sample(1:length(date.sub[,1]),1, replace = TRUE),]
           x = x+1
-          if(date.samp[,'MASS'] >= bootsdata_wide[l,k-1] | x == 300){
+          if(date.samp[,'MASS'] >= bootsdata_wide[l,k-1] | x == 10000){
             bootsdata_wide[l,k] <- date.samp[,'MASS']
             break
           }

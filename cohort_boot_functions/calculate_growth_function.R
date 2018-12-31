@@ -1,6 +1,6 @@
-calculate_growth = function(bootdata, cohort_date_list){
+calculate_growth = function(bootdata, cohort_date_list,...){
   growth_rate <- function(x,y,z) {(log(y/x))/z}
-  map2(bootdata, cohort_date_list, function(x,y){
+  future_map2(bootdata, cohort_date_list, function(x,y){
     igr_df = c()
     for(date_id in 1:(max(x$id)-1)){
       igr_vec = mapply(growth_rate, x[which(x$id == date_id),'MASS'], x[which(x$id == date_id+1),'MASS'],

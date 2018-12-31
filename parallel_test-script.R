@@ -10,21 +10,24 @@ source("./cohort_boot_functions/date_reorder_function.R")
 source("./cohort_boot_functions/mass_positive_function.R")
 source("./cohort_boot_functions/run_list_boots_function.R")
 
-
 df = read.csv(file = "./infrequensMeasurements.csv",T)
-df <- df %>% dplyr::rename(TAXON = species, SITE = Site, DATE = date, MASS = mass)
+df <- df %>% dplyr::rename(TAXON = species, SITE = Site, DATE = date, MASS = mass) %>%
+  mutate(SITE = as.character(SITE)) %>%
+  mutate(SITE = recode(SITE, "1" = "A", "2" = "B", "3" = "C", "4" = "D", "5" = "E"))
 df2 = df %>% mutate(TAXON = "infrequens2")
 DATA = rbind(df,df2)
-nboot = 500
+DATA = df
+#nboot = 500
 source("./parallel_boot_function.R")
 debugonce(parallel_cohort_boot)
-debugonce(calculate_growth)
-x = parallel_cohort_boot(DATA, nboot = 100, parallel = TRUE)
+#debugonce(calculate_growth)
+tic();x = parallel_cohort_boot(DATA, nboot = 2, parallel = TRUE);toc()
 
-ggplot(x[[1]][[1]], aes(x = IGR)) + geom_histogram() + facet_wrap(~start_date)
-length(which(x[[1]][[1]] ==0.0010))
+ggplot(x[[5]][[1]], aes(x = IGR)) + geom_histogram() + facet_wrap(~start_date)
+length(which(x[[5]][[1]] ==0.0010))
+
 tic();create_data_lists(DATA);toc()
-
+#################################################################################
 #### create_data_lists(DATA) ####
 
 #create a list of sites in data frame
@@ -188,10 +191,7 @@ x %>% group_by(SITE, TAXON) %>%
 x %>% mutate(TAXON = droplevels(TAXON)) -> x
 map2(bootsdata_wide, bootsdata, function(x,y) walk2(x,y, mass_positive(x, y)));toc()
 #####
-
-
-
-
+#############################################################################
 list(nboot)
 ggplot(site_taxa_data_lists[[1]][[1]], aes(x = DATE, y = MASS)) + geom_point(size = 2, position = 'jitter')
 make_plot = function(site_taxa_list,...){

@@ -12,34 +12,34 @@ parallel_cohort_boot = function(DATA,nboot = NULL, parallel = TRUE,...){
   source("./cohort_boot_functions/run_list_boots_function.R")
   source("./cohort_boot_functions/mass_positive_function.R")
   source("./cohort_boot_functions/calculate_growth_function.R")
-  
+  source("./cohort_boot_functions/join_days_function.R")
+
   #sets the number of "individuals" you want to sample
   if(is.null(nboot)){
     nboot = 500
   } else{ nboot = nboot }
   if(parallel == TRUE) {
     plan(multiprocess)
-    #environment(create_data_lists) <- environment()
     create_data_lists(DATA)
     sites_data_list = future_map(sites_data_list, convert_to_julian)
     site_taxa_data_lists = future_pmap(list(sites_data_list,taxa_lists), taxa_list_split)
     cohort_date_lists = future_map(site_taxa_data_lists, date_order_lists)
     site_taxa_data_lists = future_pmap(list(site_taxa_data_lists,cohort_date_lists), date_reorder)
     
-    source("./parallel_bootstrap_function.R")#function selects data 
+    source("./cohort_boot_functions/parallel_bootstrap_function.R")#function selects data 
     #debugonce(boots)
     #list of lists of bootstapped body sizes for each site-taxa/cohort
     bootsdata = future_map2(site_taxa_data_lists,nboot, run_list_boots)
     
     #now work across two columns at a time to estimate growth
     #1:names(bootsdata[,-1:2]))
-    join_days = function(site_taxa_data_list, cohort_date_list,...) {
-      map2(site_taxa_data_list, cohort_date_list, function(x,y) {
-        x %>% left_join(y %>% select(DATE, day, id))
-      })
-    }
-    bootsdata = map2(site_taxa_data_lists, cohort_date_lists, join_days)
-    bootsdata = map2(bootsdata, cohort_date_lists, calculate_growth)
+    bootsdata = future_map2(bootsdata, cohort_date_lists, join_days)
+    bootsdata = future_map2(bootsdata, cohort_date_lists, calculate_growth)
+    browser()
+    names(bootsdata) = future_map2(sites_list, taxa_lists, function(x,y) {
+      future_map2_chr(x, y, function(site, taxon) paste(site,"_",taxon,sep=""))})
+    browser()
+    return(bootsdata)
  } else{
     
   taxa = list(unique(levels(DATA$species)))#set taxa levels
