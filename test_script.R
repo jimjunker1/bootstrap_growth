@@ -14,11 +14,11 @@ unique(levels(df$species))
 #need to convert dates into POSIX format
 df$Pd = as.POSIXct(df$date, format = "%d-%m-%y")
 #just a quick visualization
-site5 = df[which(df$Site == "5"),]
-ggplot(site5, aes(x = Pd, y = mass, colour = as.factor(Site))) + 
+site_x = df[which(df$Site == "1"),]
+ggplot(site1, aes(x = Pd, y = mass, colour = as.factor(Site))) + 
   geom_point(size =2, position = "jitter")
-
-x = subset(df, Site == "2" & date == "19-11-17")
+levels(site_x$date)
+x = subset(df, Site == "1" & date == "19-12-17")
 hist(x$bodySize, breaks = 30)
 ##### done with QAQC #####
 

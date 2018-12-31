@@ -19,8 +19,8 @@ parallel_boots = function(allData, nboot,...){
     spread(DATE,MASS) %>%
     select(-id) -> boot.data_wide
 
+    boot.data_wide = mass_positive(boot.data_wide, boot.data)
     boot.data_wide %>%
-      future_map2(boot.data, ., mass_positive) %>%
       group_by(TAXON, SITE) %>%
       gather(key = DATE, value = MASS, 3:dim(boot.data_wide)[2])-> boot.data
   

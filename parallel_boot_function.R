@@ -11,25 +11,36 @@ parallel_cohort_boot = function(DATA,nboot = NULL, parallel = TRUE,...){
   source("./cohort_boot_functions/date_reorder_function.R")
   source("./cohort_boot_functions/run_list_boots_function.R")
   source("./cohort_boot_functions/mass_positive_function.R")
+  source("./cohort_boot_functions/calculate_growth_function.R")
   
   #sets the number of "individuals" you want to sample
   if(is.null(nboot)){
     nboot = 500
   } else{ nboot = nboot }
   if(parallel == TRUE) {
+    plan(multiprocess)
     #environment(create_data_lists) <- environment()
     create_data_lists(DATA)
-    sites_data_list = map(sites_data_list, convert_to_julian)
-    site_taxa_data_lists = pmap(list(sites_data_list,taxa_lists), taxa_list_split)
-    cohort_date_lists = map(site_taxa_data_lists, date_order_lists)
-    site_taxa_data_lists = pmap(list(site_taxa_data_lists,cohort_date_lists), date_reorder)
+    sites_data_list = future_map(sites_data_list, convert_to_julian)
+    site_taxa_data_lists = future_pmap(list(sites_data_list,taxa_lists), taxa_list_split)
+    cohort_date_lists = future_map(site_taxa_data_lists, date_order_lists)
+    site_taxa_data_lists = future_pmap(list(site_taxa_data_lists,cohort_date_lists), date_reorder)
     
     source("./parallel_bootstrap_function.R")#function selects data 
     #debugonce(boots)
-    bootsdata = map2(site_taxa_data_lists,nboot, run_list_boots)
+    #list of lists of bootstapped body sizes for each site-taxa/cohort
+    bootsdata = future_map2(site_taxa_data_lists,nboot, run_list_boots)
     
-    list(site_taxa_data_lists = site_taxa_data_lists)
-  } else{
+    #now work across two columns at a time to estimate growth
+    #1:names(bootsdata[,-1:2]))
+    join_days = function(site_taxa_data_list, cohort_date_list,...) {
+      map2(site_taxa_data_list, cohort_date_list, function(x,y) {
+        x %>% left_join(y %>% select(DATE, day, id))
+      })
+    }
+    bootsdata = map2(site_taxa_data_lists, cohort_date_lists, join_days)
+    bootsdata = map2(bootsdata, cohort_date_lists, calculate_growth)
+ } else{
     
   taxa = list(unique(levels(DATA$species)))#set taxa levels
   tax_data = map(taxa, taxa_subset)

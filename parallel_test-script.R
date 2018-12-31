@@ -7,6 +7,9 @@ source("./cohort_boot_functions/convert_to_julian_function.R")
 source("./cohort_boot_functions/taxa_list_split_function.R")
 source("./cohort_boot_functions/date_order_lists_function.R")
 source("./cohort_boot_functions/date_reorder_function.R")
+source("./cohort_boot_functions/mass_positive_function.R")
+source("./cohort_boot_functions/run_list_boots_function.R")
+
 
 df = read.csv(file = "./infrequensMeasurements.csv",T)
 df <- df %>% dplyr::rename(TAXON = species, SITE = Site, DATE = date, MASS = mass)
@@ -15,7 +18,11 @@ DATA = rbind(df,df2)
 nboot = 500
 source("./parallel_boot_function.R")
 debugonce(parallel_cohort_boot)
-parallel_cohort_boot(DATA, nboot = 500, parallel = TRUE)
+debugonce(calculate_growth)
+x = parallel_cohort_boot(DATA, nboot = 100, parallel = TRUE)
+
+ggplot(x[[1]][[1]], aes(x = IGR)) + geom_histogram() + facet_wrap(~start_date)
+length(which(x[[1]][[1]] ==0.0010))
 tic();create_data_lists(DATA);toc()
 
 #### create_data_lists(DATA) ####
@@ -76,11 +83,27 @@ source("./parallel_bootstrap_function.R")#function selects data
 run_list_boots = function(site_taxa_data_list, nboot,...){
   future_map2(site_taxa_data_list,nboot, parallel_boots)
 }
+###mass_positive(bootsdata_wide, bootsdata) ###
+mass_positive = function(bootsdata_wide, bootsdata,...){
+  for(k in 4:dim(bootsdata_wide)[2]){
+    for(l in 1:nrow(bootsdata_wide)){
+      if(bootsdata_wide[l,k] < bootsdata_wide[l,(k-1)]){ 
+        date.sub = subset(bootsdata, DATE == as.character(names(bootsdata_wide)[k]))
+        x=1
+        repeat {
+          date.samp = date.sub[sample(1:length(date.sub[,1]),1, replace = TRUE),]
+          x = x+1
+          if(date.samp[,'MASS'] >= bootsdata_wide[l,k-1] | x == 300){
+            bootsdata_wide[l,k] <- date.samp[,'MASS']
+            break
+          }
+        }
+      }
+    }
+  } 
+  return(bootsdata_wide) 
+}
 nboot = 50
-#debugonce(run_list_boots);debugonce(parallel_boots)
-#run the lists of site_taxa data through the bootstrap function
-plan(multiprocess)
-bootsdata = future_map2(site_taxa_data_lists,nboot, run_list_boots)
 
 bootsdata_wide = future_map2(bootsdata, nboot, function(x,y) {
   future_map2(x,y, function(x,y) { x %>%
@@ -96,27 +119,68 @@ bootsdata[[1]][[1]] %>%
   spread(DATE,MASS) %>%
   select(-id)-> bootsdata_wide
 tic();
-mass_positive = function(bootsdata_wide, bootsdata,...){
-for(k in 4:dim(bootsdata_wide)[2]){
-  for(l in 1:nrow(bootsdata_wide)){
-    if(bootsdata_wide[l,k] < bootsdata_wide[l,(k-1)]){ 
-      date.sub = subset(bootsdata, DATE == as.character(names(bootsdata_wide)[k]))
-      x=1
-      repeat {
-        date.samp = date.sub[sample(1:length(date.sub[,1]),1, replace = TRUE),]
-        x = x+1
-        if(date.samp[,'MASS'] >= bootsdata_wide[l,k-1] | x == 300){
-          bootsdata_wide[l,k] <- date.samp[,'MASS']
-          break
-         }
-       }
-     }
-   }
- } 
-return(bootsdata_wide) 
+
+#debugonce(mass_positive)
+#run the lists of site_taxa data through the bootstrap function
+plan(multiprocess)
+debugonce(run_list_boots);debugonce(parallel_boots)
+tic();bootsdata = future_map2(site_taxa_data_lists,nboot, run_list_boots);toc()
+
+bootsdata[[1]][[1]]
+
+cohort_date_lists[[1]][[1]]
+bootsdata[[1]][[1]] %>% left_join(cohort_date_lists[[1]][[1]] %>% select(DATE, day, id))
+
+join_days = function(bootsdata, cohort_date_list,...) {
+  map2(bootsdata, cohort_date_list, function(x,y) {
+    x %>% left_join(y %>% select(DATE, day, id))
+  })
 }
-debugonce(mass_positive)
-tic();x = mass_positive(bootsdata_wide, bootsdata[[1]][[1]]);toc()
+
+bootsdata = map2(bootsdata, cohort_date_lists, join_days)
+bootsdata[[1]][[1]]
+#now work across two columns at a time to estimate growth
+#1:names(bootsdata[,-1:2]))
+growth_rate = function(x,y,z){ (log(y/x))/z}
+igr_df = c()
+for(date_id in 1:(max(bootsdata[[1]][[1]]$id)-1)){
+  igr_vec = mapply(growth_rate, bootsdata[[1]][[1]][which(bootsdata[[1]][[1]]$id == date_id), 'MASS'], bootsdata[[1]][[1]][which(bootsdata[[1]][[1]]$id == date_id+1), 'MASS'],
+                   cohort_date_lists[[1]][[1]][date_id, 'day'])
+  igr_df = cbind(igr_df, igr_vec)
+}
+
+colnames(igr_df) = unique(levels(cohort_date_lists[[1]][[1]]$DATE))[1:(nrow(cohort_date_lists[[1]][[1]])-1)]
+igr_df = data.frame(TAXON = as.character(unique(bootsdata[[1]][[1]]$TAXON)), SITE = as.character(unique(bootsdata[[1]][[1]]$SITE)), igr_df, check.names = F)
+igr_df %>%
+  gather(start_date, IGR, 3:(dim(igr_df)[2]), factor_key = T) -> igr_long
+
+igr_fix = which(igr_long$IGR <= 0)
+igr_long[igr_fix, 'IGR'] = 0.001
+
+ggplot(igr_long, aes(x = IGR)) + geom_histogram() + facet_wrap(~start_date)
+
+calculate_growth = function(bootsdata, cohort_date_list){
+  growth_rate <- function(x,y,z) {(log(y/x))/z}
+  
+  igr_df = c()
+  for(date_id in 1:(max(bootsdata$id)-1)){
+    igr_vec = mapply(growth_rate, bootsdata[which(bootsdata$id == date_id),'MASS'], bootsdata[which(bootsdata$id == date_id+1),'MASS'],
+                     cohort_date_list[date_id,'day'])
+    igr_df = cbind(igr_df,igr_vec)
+  }
+  
+  colnames(igr_df) = unique(levels(cohort_date_list$DATE))[1:(nrow(cohort_date_list)-1)]
+  igr_df = data.frame(TAXON = as.character(unique(bootsdata$TAXON)), SITE = as.character(unique(bootsdata$SITE)), igr_df, check.names = F)
+  igr_df %>%
+    gather(start_date, IGR, 3:(dim(igr_df)[2]), factor_key = T) -> igr_long
+  
+  igr_fix = which(igr_long$IGR <= 0)
+  igr_long[igr_fix, 'IGR'] = 0.001
+  TAXON = as.character(droplevels(bootsdata$TAXON))
+  SITE = as.character(droplevels(bootsdata$SITE))
+  write.csv(igr_long, file = paste("./output/",TAXON,"_site-",SITE,"_IGR.csv",sep = ""), row.names = F) 
+  return(igr_long)
+}
 str(x)
 
 x %>% group_by(SITE, TAXON) %>%
