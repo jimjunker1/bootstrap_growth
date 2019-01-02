@@ -35,10 +35,10 @@ parallel_cohort_boot = function(DATA,nboot = NULL, parallel = TRUE,...){
     #1:names(bootsdata[,-1:2]))
     bootsdata = future_map2(bootsdata, cohort_date_lists, join_days)
     bootsdata = future_map2(bootsdata, cohort_date_lists, calculate_growth)
-    browser()
-    names(bootsdata) = future_map2(sites_list, taxa_lists, function(x,y) {
-      future_map2_chr(x, y, function(site, taxon) paste(site,"_",taxon,sep=""))})
-    browser()
+    names(bootsdata) = sites_list
+    #future_map2(sites_list, taxa_lists, function(x,y) {
+    #  future_map2_chr(x, y, function(site, taxon) paste(site,"_",taxon,sep=""))})
+    #setNames(lapply(bootsdata, setNames, taxa_lists), sites_list)
     return(bootsdata)
  } else{
     

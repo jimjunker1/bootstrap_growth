@@ -21,13 +21,17 @@ DATA = df
 source("./parallel_boot_function.R")
 debugonce(parallel_cohort_boot)
 #debugonce(calculate_growth)
-tic();x = parallel_cohort_boot(DATA, nboot = 2, parallel = TRUE);toc()
+tic();x = parallel_cohort_boot(DATA, nboot = 5000, parallel = TRUE);toc()
 
+## plotting the distribution of a few dates ###
+x[[5]][[1]]
 ggplot(x[[5]][[1]], aes(x = IGR)) + geom_histogram() + facet_wrap(~start_date)
 length(which(x[[5]][[1]] ==0.0010))
-
-tic();create_data_lists(DATA);toc()
+x[[5]][[1]]
 #################################################################################
+time_df = data.frame(nboot = c(2,10,50,5000), time = c(19.89,30.11,75.82,8054.15))
+ggplot(time_df, aes(x = log10(nboot), y = log10(time))) + geom_point() + geom_path() +
+  geom_abline(slope = 1, intercept = 0)
 #### create_data_lists(DATA) ####
 
 #create a list of sites in data frame
