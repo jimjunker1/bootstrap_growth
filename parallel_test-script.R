@@ -1,4 +1,5 @@
 #parallel test script 
+library(tictoc)
 library(tidyverse)
 library(furrr)
 source("./cohort_boot_functions/create_data_lists_function.R")
@@ -21,13 +22,15 @@ DATA = df
 source("./parallel_boot_function.R")
 debugonce(parallel_cohort_boot)
 #debugonce(calculate_growth)
-tic();x = parallel_cohort_boot(DATA, nboot = 5000, parallel = TRUE);toc()
+tic();x = parallel_cohort_boot(DATA, nboot =50 , parallel = TRUE);toc()
 
 ## plotting the distribution of a few dates ###
 x[[5]][[1]]
-ggplot(x[[5]][[1]], aes(x = IGR)) + geom_histogram() + facet_wrap(~start_date)
+ggplot(x[[3]][[1]], aes(x = IGR)) + geom_histogram() + facet_wrap(~start_date)
 length(which(x[[5]][[1]] ==0.0010))
 x[[5]][[1]]
+
+
 #################################################################################
 time_df = data.frame(nboot = c(2,10,50,5000), time = c(19.89,30.11,75.82,8054.15))
 ggplot(time_df, aes(x = log10(nboot), y = log10(time))) + geom_point() + geom_path() +
@@ -197,7 +200,7 @@ map2(bootsdata_wide, bootsdata, function(x,y) walk2(x,y, mass_positive(x, y)));t
 #####
 #############################################################################
 list(nboot)
-ggplot(site_taxa_data_lists[[1]][[1]], aes(x = DATE, y = MASS)) + geom_point(size = 2, position = 'jitter')
+ggplot(site_taxa_data_lists[[5]][[1]], aes(x = DATE, y = MASS)) + geom_point(size = 2, position = 'jitter')
 make_plot = function(site_taxa_list,...){
   ggplot(site_taxa_list, aes(x = DATE, y = MASS)) + geom_point(size = 2, position = 'jitter') +
     scale_y_continuous(limits = c(0,5))
