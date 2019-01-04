@@ -18,8 +18,8 @@ df = read.csv(file = "./infrequensMeasurements.csv",T)
 df <- df %>% dplyr::rename(TAXON = species, SITE = Site, DATE = date, MASS = mass) %>%
   mutate(SITE = as.character(SITE)) %>%
   mutate(SITE = recode(SITE, "1" = "A", "2" = "B", "3" = "C", "4" = "D", "5" = "E"))
-df2 = df %>% mutate(TAXON = "infrequens2")
-DATA = rbind(df,df2)
+#df2 = df %>% mutate(TAXON = "infrequens2")
+#DATA = rbind(df,df2)
 DATA = df
 #nboot = 500
 source("./parallel_boot_function.R")
@@ -230,21 +230,24 @@ make_plot = function(site_taxa_list,...){
 map(site_taxa_data_lists, function(x) map(x,make_plot))
 
 
-
-
-ggplot(site5, aes(x = Pd, y = mass, colour = as.factor(SITE))) + 
+####
+siteA = df[which(df$SITE == 'A'),]
+ggplot(siteA, aes(x = DATE, y = MASS, colour = as.factor(SITE))) + 
   geom_point(size =2, position = "jitter")
 
-
-map()
-
-
-cohort_sub
-#create a list of data subset for every taxa
-tax_data_lists= map2(list(df), taxa, taxa_subset)
-#create lists of 
-sites = map(tax_data_lists, function(x) as.list(unique(x$Site)))
-
-
-
-lapply(taxa, function(x) unique(df[x,"SITE"]))#list(unique(x[,"SITE"])))
+siteA %>%
+  mutate(text = fct_reorder(DATE, MASS)) %>%
+  ggplot( aes(y= DATE, x = MASS,  fill = DATE)) +
+  geom_density_ridges(alpha=0.8, bandwidth= 0.2) +
+  #geom_density_ridges(alpha = 0.8, stat = "binline", bins = 20) +
+  scale_fill_viridis(discrete=TRUE) +
+  scale_color_viridis(discrete=TRUE) +
+  theme_ipsum() +
+  theme(
+    panel.grid = element_blank(),
+    legend.position="none",
+    panel.spacing = unit(0.1, "lines"),
+    strip.text.x = element_text(size = 8)
+  ) +
+  xlab("") +
+  ylab("Body size (mg)")
