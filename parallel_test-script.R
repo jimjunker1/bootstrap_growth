@@ -1,6 +1,9 @@
 #parallel test script 
 library(tictoc)
 library(tidyverse)
+library(hrbthemes)
+library(viridis)
+library(ggridges)
 library(furrr)
 source("./cohort_boot_functions/create_data_lists_function.R")
 source("./cohort_boot_functions/sites_subset_function.R")
@@ -25,8 +28,27 @@ debugonce(parallel_cohort_boot)
 tic();x = parallel_cohort_boot(DATA, nboot =50 , parallel = TRUE);toc()
 
 ## plotting the distribution of a few dates ###
-x[[5]][[1]]
-ggplot(x[[3]][[1]], aes(x = IGR)) + geom_histogram() + facet_wrap(~start_date)
+#https://www.data-to-viz.com/graph/ridgeline.html#mistake
+# use the ridgeplot to view these data next.
+x[[5]][[1]] %>%
+  #mutate(text = fct_reorder(text, value)) %>%
+  ggplot( aes(y=start_date, x=IGR,  fill=start_date)) +
+  geom_density_ridges(alpha=0.8, bandwidth=0.004) +
+  #geom_density_ridges(alpha = 0.8, stat = "binline", bins = 20) +
+  scale_fill_viridis(discrete=TRUE) +
+  scale_color_viridis(discrete=TRUE) +
+  theme_ipsum() +
+  theme(
+    panel.grid = element_blank(),
+    legend.position="none",
+    panel.spacing = unit(0.1, "lines"),
+    strip.text.x = element_text(size = 8)
+  ) +
+  xlab("") +
+  ylab("IGR d-1")
+
+
+ggplot(x[[5]][[1]], aes(x = IGR)) + geom_histogram() + facet_wrap(~start_date)
 length(which(x[[5]][[1]] ==0.0010))
 x[[5]][[1]]
 
